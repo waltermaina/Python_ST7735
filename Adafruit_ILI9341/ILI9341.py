@@ -179,11 +179,11 @@ class ILI9341(object):
         """Reset the display, if reset pin is connected."""
         if self._rst is not None:
             self._gpio.set_high(self._rst)
-            time.sleep(0.005)
+            time.sleep(0.500)
             self._gpio.set_low(self._rst)
-            time.sleep(0.02)
+            time.sleep(0.500)
             self._gpio.set_high(self._rst)
-            time.sleep(0.150)
+            time.sleep(0.500)
 
     def _init(self):
         # Initialize the display.  Broken out as a separate function so it can
@@ -314,7 +314,7 @@ class ILI9341(object):
         x1 should define the minimum and maximum x pixel bounds.  y0 and y1
         should define the minimum and maximum y pixel bound.  If no parameters
         are specified the default will be to update the entire display from 0,0
-        to 239,319.
+        to width-1,height-1.
         """
         if x1 is None:
             x1 = self.width-1

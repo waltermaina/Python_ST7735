@@ -241,7 +241,7 @@ class ILI9341(object):
         self.command(ILI9341_MADCTL) # Memory access control (directions)
         self.data(0xC8) # row addr/col addr, bottom to top refresh
         
-        self.command(ILI9341_COLMOD) # set color mode
+        self.command(ST7735_COLMOD) # set color mode
         self.data(0x05) # 16-bit color
         
         #

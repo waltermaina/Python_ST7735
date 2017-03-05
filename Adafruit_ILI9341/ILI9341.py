@@ -29,9 +29,13 @@ import Adafruit_GPIO as GPIO
 import Adafruit_GPIO.SPI as SPI
 
 
+# SPI_CLOCK_HZ = 64000000 # 64 MHz
+SPI_CLOCK_HZ = 4000000 # 4 MHz
+
+
 # Constants for interacting with display registers.
-ILI9341_TFTWIDTH    = 240
-ILI9341_TFTHEIGHT   = 320
+ILI9341_TFTWIDTH    = 128
+ILI9341_TFTHEIGHT   = 160
 
 ILI9341_NOP         = 0x00
 ILI9341_SWRESET     = 0x01
@@ -43,32 +47,36 @@ ILI9341_SLPOUT      = 0x11
 ILI9341_PTLON       = 0x12
 ILI9341_NORON       = 0x13
 
-ILI9341_RDMODE      = 0x0A
-ILI9341_RDMADCTL    = 0x0B
-ILI9341_RDPIXFMT    = 0x0C
-ILI9341_RDIMGFMT    = 0x0A
-ILI9341_RDSELFDIAG  = 0x0F
+# ILI9341_RDMODE      = 0x0A
+# ILI9341_RDMADCTL    = 0x0B
+# ILI9341_RDPIXFMT    = 0x0C
+# ILI9341_RDIMGFMT    = 0x0A
+# ILI9341_RDSELFDIAG  = 0x0F
 
 ILI9341_INVOFF      = 0x20
 ILI9341_INVON       = 0x21
-ILI9341_GAMMASET    = 0x26
+# ILI9341_GAMMASET    = 0x26
 ILI9341_DISPOFF     = 0x28
 ILI9341_DISPON      = 0x29
 
 ILI9341_CASET       = 0x2A
-ILI9341_PASET       = 0x2B
+# ILI9341_PASET       = 0x2B
+ILI9341_RASET       = 0x2B
 ILI9341_RAMWR       = 0x2C
 ILI9341_RAMRD       = 0x2E
 
 ILI9341_PTLAR       = 0x30
 ILI9341_MADCTL      = 0x36
-ILI9341_PIXFMT      = 0x3A
+# ILI9341_PIXFMT      = 0x3A
+ST7735_COLMOD       = 0x3A
 
 ILI9341_FRMCTR1     = 0xB1
 ILI9341_FRMCTR2     = 0xB2
 ILI9341_FRMCTR3     = 0xB3
 ILI9341_INVCTR      = 0xB4
-ILI9341_DFUNCTR     = 0xB6
+# ILI9341_DFUNCTR     = 0xB6
+ST7735_DISSET5      = 0xB6
+
 
 ILI9341_PWCTR1      = 0xC0
 ILI9341_PWCTR2      = 0xC1
@@ -76,7 +84,7 @@ ILI9341_PWCTR3      = 0xC2
 ILI9341_PWCTR4      = 0xC3
 ILI9341_PWCTR5      = 0xC4
 ILI9341_VMCTR1      = 0xC5
-ILI9341_VMCTR2      = 0xC7
+# ILI9341_VMCTR2      = 0xC7
 
 ILI9341_RDID1       = 0xDA
 ILI9341_RDID2       = 0xDB
@@ -88,14 +96,15 @@ ILI9341_GMCTRN1     = 0xE1
 
 ILI9341_PWCTR6      = 0xFC
 
-ILI9341_BLACK       = 0x0000
-ILI9341_BLUE        = 0x001F
-ILI9341_RED         = 0xF800
-ILI9341_GREEN       = 0x07E0
-ILI9341_CYAN        = 0x07FF
-ILI9341_MAGENTA     = 0xF81F
-ILI9341_YELLOW      = 0xFFE0
-ILI9341_WHITE       = 0xFFFF
+# Colours for convenience
+ILI9341_BLACK       = 0x0000 # 0b 00000 000000 00000
+ILI9341_BLUE        = 0x001F # 0b 00000 000000 11111
+ILI9341_GREEN       = 0x07E0 # 0b 00000 111111 00000
+ILI9341_RED         = 0xF800 # 0b 11111 000000 00000
+ILI9341_CYAN        = 0x07FF # 0b 00000 111111 11111
+ILI9341_MAGENTA     = 0xF81F # 0b 11111 000000 11111
+ILI9341_YELLOW      = 0xFFE0 # 0b 11111 111111 00000
+ILI9341_WHITE       = 0xFFFF # 0b 11111 111111 11111
 
 
 def color565(r, g, b):
@@ -106,8 +115,8 @@ def color565(r, g, b):
 
 def image_to_data(image):
     """Generator function to convert a PIL image to 16-bit 565 RGB bytes."""
-    #NumPy is much faster at doing this. NumPy code provided by:
-    #Keith (https://www.blogger.com/profile/02555547344016007163)
+    # NumPy is much faster at doing this. NumPy code provided by:
+    # Keith (https://www.blogger.com/profile/02555547344016007163)
     pb = np.array(image.convert('RGB')).astype('uint16')
     color = ((pb[:,:,0] & 0xF8) << 8) | ((pb[:,:,1] & 0xFC) << 3) | (pb[:,:,2] >> 3)
     return np.dstack(((color >> 8) & 0xFF, color & 0xFF)).flatten().tolist()
@@ -138,7 +147,7 @@ class ILI9341(object):
         # Set SPI to mode 0, MSB first.
         spi.set_mode(0)
         spi.set_bit_order(SPI.MSBFIRST)
-        spi.set_clock_hz(64000000)
+        spi.set_clock_hz(SPI_CLOCK_HZ)
         # Create an image buffer.
         self.buffer = Image.new('RGB', (width, height))
 
@@ -179,93 +188,119 @@ class ILI9341(object):
     def _init(self):
         # Initialize the display.  Broken out as a separate function so it can
         # be overridden by other displays in the future.
-        self.command(0xEF)
-        self.data(0x03)
-        self.data(0x80)
-        self.data(0x02)
-        self.command(0xCF)
-        self.data(0x00)
-        self.data(0XC1)
-        self.data(0X30)
-        self.command(0xED)
-        self.data(0x64)
-        self.data(0x03)
-        self.data(0X12)
-        self.data(0X81)
-        self.command(0xE8)
-        self.data(0x85)
-        self.data(0x00)
-        self.data(0x78)
-        self.command(0xCB)
-        self.data(0x39)
+        
+        self.command(ILI9341_SWRESET) # Software reset
+        time.sleep(0.150) # delay 150 ms
+        
+        self.command(ILI9341_SLPOUT) # Out of sleep mode
+        time.sleep(0.500) # delay 500 ms
+        
+        self.command(ILI9341_FRMCTR1) # Frame rate ctrl - normal mode
+        self.data(0x01) # Rate = fosc/(1x2+40) * (LINE+2C+2D)
         self.data(0x2C)
+        self.data(0x2D)
+        
+        self.command(ILI9341_FRMCTR2) # Frame rate ctrl - idle mode
+        self.data(0x01) # Rate = fosc/(1x2+40) * (LINE+2C+2D)
+        self.data(0x2C)
+        self.data(0x2D)
+        
+        self.command(ILI9341_FRMCTR3) # Frame rate ctrl - partial mode
+        self.data(0x01) # Dot inversion mode
+        self.data(0x2C)
+        self.data(0x2D)
+        self.data(0x01) # Line inversion mode
+        self.data(0x2C)
+        self.data(0x2D)
+        
+        self.command(ILI9341_INVCTR) # Display inversion ctrl
+        self.data(0x07) # No inversion
+        
+        self.command(ILI9341_PWCTR1) # Power control
+        self.data(0xA2)
+        self.data(0x02) # -4.6V
+        self.data(0x84) # auto mode
+        
+        self.command(ILI9341_PWCTR2) # Power control
+        self.data(0x0A) # Opamp current small
+        self.data(0x00) # Boost frequency
+        
+        self.command(ILI9341_PWCTR4) # Power control
+        self.data(0x8A) # BCLK/2, Opamp current small & Medium low
+        self.data(0x2A)
+        
+        self.command(ILI9341_PWCTR5) # Power control
+        self.data(0x8A)
+        self.data(0xEE)
+        
+        self.command(ILI9341_VMCTR1) # Power control
+        self.data(0x0E)
+        
+        self.command(ILI9341_INVOFF) # Don't invert display
+        
+        self.command(ILI9341_MADCTL) # Memory access control (directions)
+        self.data(0xC8) # row addr/col addr, bottom to top refresh
+        
+        self.command(ILI9341_COLMOD) # set color mode
+        self.data(0x05) # 16-bit color
+        
+        #
+        
+        self.command(ILI9341_CASET) # Column addr set
+        self.data(0x00) # XSTART = 0
         self.data(0x00)
-        self.data(0x34)
+        self.data(0x00) # XEND = 127
+        self.data(0x7F)
+        
+        self.command(ILI9341_RASET) # Row addr set
+        self.data(0x00) # XSTART = 0
+        self.data(0x00)
+        self.data(0x00) # XEND = 159
+        self.data(0x9F)
+        
+        #
+        
+        self.command(ILI9341_GMCTRP1) # Set Gamma
         self.data(0x02)
-        self.command(0xF7)
-        self.data(0x20)
-        self.command(0xEA)
-        self.data(0x00)
-        self.data(0x00)
-        self.command(ILI9341_PWCTR1)    # Power control
-        self.data(0x23)                    # VRH[5:0]
-        self.command(ILI9341_PWCTR2)    # Power control
-        self.data(0x10)                    # SAP[2:0];BT[3:0]
-        self.command(ILI9341_VMCTR1)    # VCM control
-        self.data(0x3e)
-        self.data(0x28)
-        self.command(ILI9341_VMCTR2)    # VCM control2
-        self.data(0x86)                    # --
-        self.command(ILI9341_MADCTL)    #  Memory Access Control
-        self.data(0x48)
-        self.command(ILI9341_PIXFMT)
-        self.data(0x55)
-        self.command(ILI9341_FRMCTR1)
-        self.data(0x00)
-        self.data(0x18)
-        self.command(ILI9341_DFUNCTR)    #  Display Function Control
-        self.data(0x08)
-        self.data(0x82)
-        self.data(0x27)
-        self.command(0xF2)                #  3Gamma Function Disable
-        self.data(0x00)
-        self.command(ILI9341_GAMMASET)    # Gamma curve selected
-        self.data(0x01)
-        self.command(ILI9341_GMCTRP1)    # Set Gamma
-        self.data(0x0F)
-        self.data(0x31)
-        self.data(0x2B)
-        self.data(0x0C)
-        self.data(0x0E)
-        self.data(0x08)
-        self.data(0x4E)
-        self.data(0xF1)
+        self.data(0x1c)
+        self.data(0x07)
+        self.data(0x12)
         self.data(0x37)
-        self.data(0x07)
+        self.data(0x32)
+        self.data(0x29)
+        self.data(0x2d)
+        self.data(0x29)
+        self.data(0x25)
+        self.data(0x2B)
+        self.data(0x39)
+        self.data(0x00)
+        self.data(0x01)
+        self.data(0x03)
         self.data(0x10)
+        
+        self.command(ILI9341_GMCTRN1) # Set Gamma
         self.data(0x03)
-        self.data(0x0E)
-        self.data(0x09)
-        self.data(0x00)
-        self.command(ILI9341_GMCTRN1)    # Set Gamma
-        self.data(0x00)
-        self.data(0x0E)
-        self.data(0x14)
-        self.data(0x03)
-        self.data(0x11)
+        self.data(0x1d)
         self.data(0x07)
-        self.data(0x31)
-        self.data(0xC1)
-        self.data(0x48)
-        self.data(0x08)
-        self.data(0x0F)
-        self.data(0x0C)
-        self.data(0x31)
-        self.data(0x36)
-        self.data(0x0F)
-        self.command(ILI9341_SLPOUT)    # Exit Sleep
-        time.sleep(0.120)
-        self.command(ILI9341_DISPON)    # Display on
+        self.data(0x06)
+        self.data(0x2E)
+        self.data(0x2C)
+        self.data(0x29)
+        self.data(0x2D)
+        self.data(0x2E)
+        self.data(0x2E)
+        self.data(0x37)
+        self.data(0x3F)
+        self.data(0x00)
+        self.data(0x00)
+        self.data(0x02)
+        self.data(0x10)
+        
+        self.command(ILI9341_NORON) # Normal display on
+        time.sleep(0.10) # 10 ms
+        
+        self.command(ILI9341_DISPON) # Display on
+        time.sleep(0.100) # 100 ms
 
     def begin(self):
         """Initialize the display.  Should be called once before other calls that
@@ -290,7 +325,7 @@ class ILI9341(object):
         self.data(x0)                    # XSTART
         self.data(x1 >> 8)
         self.data(x1)                    # XEND
-        self.command(ILI9341_PASET)        # Row addr set
+        self.command(ILI9341_RASET)        # Row addr set
         self.data(y0 >> 8)
         self.data(y0)                    # YSTART
         self.data(y1 >> 8)

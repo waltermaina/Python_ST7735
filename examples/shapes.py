@@ -22,14 +22,19 @@ from PIL import Image
 from PIL import ImageDraw
 from PIL import ImageFont
 
-import Adafruit_ILI9341 as TFT
+import ST7735 as TFT
 import Adafruit_GPIO as GPIO
 import Adafruit_GPIO.SPI as SPI
 
 
+WIDTH = 128
+HEIGHT = 160
+SPEED_HZ = 4000000
+
+
 # Raspberry Pi configuration.
-DC = 18
-RST = 23
+DC = 24
+RST = 25
 SPI_PORT = 0
 SPI_DEVICE = 0
 
@@ -40,7 +45,13 @@ SPI_DEVICE = 0
 # SPI_DEVICE = 0
 
 # Create TFT LCD display class.
-disp = TFT.ILI9341(DC, rst=RST, spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE, max_speed_hz=64000000))
+disp = TFT.ST7735(
+    DC,
+    rst=RST,
+    spi=SPI.SpiDev(
+        SPI_PORT,
+        SPI_DEVICE,
+        max_speed_hz=SPEED_HZ))
 
 # Initialize display.
 disp.begin()

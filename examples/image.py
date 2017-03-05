@@ -20,9 +20,14 @@
 # THE SOFTWARE.
 from PIL import Image
 
-import Adafruit_ILI9341 as TFT
+import ST7735 as TFT
 import Adafruit_GPIO as GPIO
 import Adafruit_GPIO.SPI as SPI
+
+
+WIDTH = 128
+HEIGHT = 160
+SPEED_HZ = 4000000
 
 
 # Raspberry Pi configuration.
@@ -38,7 +43,13 @@ SPI_DEVICE = 0
 # SPI_DEVICE = 0
 
 # Create TFT LCD display class.
-disp = TFT.ILI9341(DC, rst=RST, spi=SPI.SpiDev(SPI_PORT, SPI_DEVICE, max_speed_hz=4000000))
+disp = TFT.ST7735(
+    DC,
+    rst=RST,
+    spi=SPI.SpiDev(
+        SPI_PORT,
+        SPI_DEVICE,
+        max_speed_hz=SPEED_HZ))
 
 # Initialize display.
 disp.begin()
@@ -47,8 +58,8 @@ disp.begin()
 print('Loading image...')
 image = Image.open('cat.jpg')
 
-# Resize the image and rotate it so it's 240x320 pixels.
-image = image.rotate(90).resize((128, 160))
+# Resize the image and rotate it so matches the display.
+image = image.rotate(90).resize((WIDTH, HEIGHT))
 
 # Draw the image on the display hardware.
 print('Drawing image')
